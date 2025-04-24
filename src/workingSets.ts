@@ -736,12 +736,18 @@ export class WorkingSetsExplorer {
     }
 
     // Listen for repositories being added
-    gitAPI.onDidOpenRepository((repo) => {
-      repo.state.onDidChange(() => {
-        console.log("New repository state changed, refreshing working sets")
-        workingSetsProvider.refresh()
-      })
-    })
+    gitAPI.onDidOpenRepository(
+      (repo: {
+        state: {
+          onDidChange: (listener: () => void) => vscode.Disposable
+        }
+      }) => {
+        repo.state.onDidChange(() => {
+          console.log("New repository state changed, refreshing working sets")
+          workingSetsProvider.refresh()
+        })
+      }
+    )
   }
 
   private setupFileSystemWatcher(
