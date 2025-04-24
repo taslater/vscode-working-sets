@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/bernardop/vscode-working-sets"
   },
-  "version": "2.0.0",
+  "version": "2.1.0",
   "publisher": "bernardop",
   "engines": {
     "vscode": "^1.67.0"
@@ -27,6 +27,8 @@
     "onCommand:workingSets.sortFilesDescending",
     "onCommand:workingSets.sortWorkingSetsAscending",
     "onCommand:workingSets.sortWorkingSetsDescending",
+    "onCommand:workingSets.fileNotFound",
+    "onCommand:workingSets.refreshAfterBranchChange",
     "onView:explorer",
     "onView:workingSets"
   ],
@@ -63,6 +65,16 @@
         },
         {
           "command": "workingSets.reload",
+          "when": "view == workingSets",
+          "group": "navigation"
+        },
+        {
+          "command": "workingSets.refreshAfterBranchChange",
+          "when": "view == workingSets",
+          "group": "navigation"
+        },
+        {
+          "command": "workingSets.refreshAfterBranchChange",
           "when": "view == workingSets",
           "group": "navigation"
         },
@@ -195,6 +207,12 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "workingSets.refreshAfterBranchChange",
+        "title": "Refresh Working Sets After Branch Change",
+        "category": "Working Sets",
+        "icon": "$(sync)"
+      },
+      {
         "command": "workingSets.sortWorkingSetsAscending",
         "title": "Sort Working Sets in Ascending Order",
         "category": "Working Sets"
@@ -233,6 +251,12 @@
         "title": "Move file down in the working set",
         "category": "Working Sets",
         "icon": "$(arrow-down)"
+      },
+      {
+        "command": "workingSets.refreshAfterBranchChange",
+        "title": "Refresh Working Sets After Branch Change",
+        "category": "Working Sets",
+        "icon": "$(refresh)"
       }
     ],
     "configuration": {

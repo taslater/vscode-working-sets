@@ -8,6 +8,20 @@ Conveniently manage "working sets" of files. This extension allows you to create
 
 ## Features
 
+### Persistent Files Across Git Branches
+
+Files in working sets now persist when switching between git branches, even if the files don't exist in some branches. When you switch to a branch where a file doesn't exist:
+
+- The file remains in your working set with a visual indicator showing it's missing
+- When you switch back to a branch where the file exists, it will be available again
+- Attempting to open a missing file shows a helpful message instead of an error
+- Working sets automatically refresh when git branches change (when Git is available)
+- Manual refresh buttons for working sets are available in the Working Sets view
+- File existence is checked dynamically as needed
+- Warning icons clearly indicate files that don't exist in the current branch
+
+This makes working sets much more useful when working across different feature branches!
+
 ### Available Commands in Command Palette
 
 - `Working Sets: Create`
@@ -20,6 +34,7 @@ Conveniently manage "working sets" of files. This extension allows you to create
 - `Working Sets: Sort Working Sets in Descending Order`
 - `Working Sets: Sort Files in Ascending Order`
 - `Working Sets: Sort Files in Descending Order`
+- `Working Sets: Refresh After Branch Change`
 
 ### Create a Working Set
 

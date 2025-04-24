@@ -398,7 +398,16 @@ export class WorkingSetsProvider
     return storedWorkingSets
   }
 
-  private refresh() {
+  refresh() {
+    // Force all working set items to update their existence status
+    for (const workingSet of this.workingSets) {
+      for (const item of workingSet.getItems()) {
+        // Accessing the existsInFileSystem getter will trigger a refresh
+        const exists = item.existsInFileSystem
+      }
+    }
+
+    // Then update the treeview
     this._onDidChangeTreeData.fire(undefined)
   }
 
@@ -563,10 +572,27 @@ export class WorkingSetsProvider
     if (workingSetItems.length > 0) {
       await vscode.commands.executeCommand("workbench.action.closeAllEditors")
 
-      for (const { resourceUri } of workingSetItems) {
-        await vscode.commands.executeCommand("vscode.open", resourceUri, {
-          preview: false,
-        })
+      const missingFiles: string[] = []
+
+      for (const item of workingSetItems) {
+        const { resourceUri } = item
+        // Check if file exists before trying to open it
+        if (existsSync(resourceUri.fsPath)) {
+          await vscode.commands.executeCommand("vscode.open", resourceUri, {
+            preview: false,
+          })
+        } else {
+          missingFiles.push(basename(resourceUri.fsPath))
+        }
+      }
+
+      // Show information about missing files if any
+      if (missingFiles.length > 0) {
+        vscode.window.showInformationMessage(
+          `The following files don't exist in the current branch: ${missingFiles.join(
+            ", "
+          )}`
+        )
       }
     } else {
       vscode.window.showInformationMessage(
@@ -586,10 +612,7 @@ export class WorkingSetsExplorer {
       showCollapseAll: true,
     })
 
-    vscode.workspace.onDidChangeConfiguration(() => {
-      workingSetsProvider.updateWorkspaceState()
-    })
-
+    // Register the commands first, before any potentially failing operations
     vscode.commands.registerCommand("workingSets.create", () =>
       workingSetsProvider.create()
     )
@@ -647,9 +670,113 @@ export class WorkingSetsExplorer {
       (workingSetItem) =>
         workingSetsProvider.moveFile(workingSetItem, MoveDirection.DOWN)
     )
+    vscode.commands.registerCommand(
+      "workingSets.fileNotFound",
+      (uri: vscode.Uri) => {
+        const fileName = basename(uri.fsPath)
+        vscode.window.showInformationMessage(
+          `The file '${fileName}' doesn't exist in the current branch, but is still in your working set.`
+        )
+      }
+    )
+
+    // Add a specific command to refresh working sets after branch changes
+    vscode.commands.registerCommand(
+      "workingSets.refreshAfterBranchChange",
+      () => {
+        workingSetsProvider.refresh()
+        vscode.window.showInformationMessage(
+          "Working sets refreshed to show current branch status."
+        )
+      }
+    )
+
+    // Try to set up Git integration, but don't fail if Git isn't available
+    try {
+      this.setupGitIntegration(workingSetsProvider)
+    } catch (error) {
+      console.log("Git integration not available:", error)
+    }
+
+    // Set up the file system watcher that doesn't depend on Git
+    this.setupFileSystemWatcher(workingSetsProvider, context)
   }
 
   private reveal(workingSet: WorkingSet) {
     this.workingSetsViewer.reveal(workingSet, { expand: true })
+  }
+
+  private setupGitIntegration(workingSetsProvider: WorkingSetsProvider) {
+    const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports
+    if (!gitExtension) {
+      return // Git not available
+    }
+
+    const gitAPI = gitExtension.getAPI(1)
+    if (!gitAPI) {
+      return // Git API not available
+    }
+
+    // Listen for repository state changes (including branch changes)
+    gitAPI.onDidChangeState(() => {
+      console.log("Git state changed, refreshing working sets")
+      workingSetsProvider.refresh()
+    })
+
+    // Listen for specific branch changes
+    const repositories = gitAPI.repositories
+    for (const repo of repositories) {
+      repo.state.onDidChange(() => {
+        console.log("Repository state changed, refreshing working sets")
+        workingSetsProvider.refresh()
+      })
+
+      // Forcefully refresh now in case we're initializing after a branch change
+      workingSetsProvider.refresh()
+    }
+
+    // Listen for repositories being added
+    gitAPI.onDidOpenRepository((repo) => {
+      repo.state.onDidChange(() => {
+        console.log("New repository state changed, refreshing working sets")
+        workingSetsProvider.refresh()
+      })
+    })
+  }
+
+  private setupFileSystemWatcher(
+    workingSetsProvider: WorkingSetsProvider,
+    context: vscode.ExtensionContext
+  ) {
+    // Listen for configuration changes
+    vscode.workspace.onDidChangeConfiguration(() => {
+      workingSetsProvider.updateWorkspaceState()
+    })
+
+    // Listen for workspace folder changes that might indicate a branch switch
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      workingSetsProvider.refresh()
+    })
+
+    // Create the file system watcher
+    const fileSystemWatcher = vscode.workspace.createFileSystemWatcher("**/*")
+
+    // Use a debounce mechanism to avoid too many refreshes
+    let refreshTimeout: NodeJS.Timeout | undefined
+    const debouncedRefresh = () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout)
+      }
+      refreshTimeout = setTimeout(() => {
+        workingSetsProvider.refresh()
+        refreshTimeout = undefined
+      }, 1000) // Wait 1 second before refreshing
+    }
+
+    fileSystemWatcher.onDidCreate(debouncedRefresh)
+    fileSystemWatcher.onDidDelete(debouncedRefresh)
+
+    // Register the watcher so it gets disposed when the extension is deactivated
+    context.subscriptions.push(fileSystemWatcher)
   }
 }

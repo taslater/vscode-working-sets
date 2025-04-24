@@ -11,7 +11,8 @@ type StringifyableWorkspaceWorkingSet = {
   filePaths: string[]
 }
 
-export type StringifyableWorkspaceWorkingSets = StringifyableWorkspaceWorkingSet[]
+export type StringifyableWorkspaceWorkingSets =
+  StringifyableWorkspaceWorkingSet[]
 
 export type WorkingSetsNode = WorkingSet | WorkingSetItem
 
@@ -33,7 +34,8 @@ export class WorkingSet extends vscode.TreeItem {
   contextValue = "workingSet"
 
   getItems() {
-    return this.items.filter(({ existsInFileSystem }) => existsInFileSystem)
+    // Return all items regardless of whether they exist in the file system
+    return this.items
   }
 
   setItems(...filePaths: string[]) {
@@ -102,7 +104,9 @@ export class WorkingSet extends vscode.TreeItem {
 }
 
 export class WorkingSetItem extends vscode.TreeItem {
-  existsInFileSystem: boolean
+  private _existsInFileSystem: boolean
+  // Add icon property that we'll use to indicate missing files
+  iconPath?: vscode.ThemeIcon
 
   constructor(
     public readonly resourceUri: vscode.Uri,
@@ -110,13 +114,71 @@ export class WorkingSetItem extends vscode.TreeItem {
   ) {
     super(resourceUri, vscode.TreeItemCollapsibleState.None)
 
-    this.existsInFileSystem = existsSync(resourceUri.fsPath)
+    this._existsInFileSystem = existsSync(resourceUri.fsPath)
+    this.updateLabel()
+    this.updateCommand()
   }
 
-  public readonly command: vscode.Command = {
-    title: "",
-    command: "vscode.open",
-    arguments: [this.resourceUri, { preview: false }],
+  // Dynamically check if the file exists when needed
+  get existsInFileSystem(): boolean {
+    try {
+      // Force a more aggressive file system check
+      this._existsInFileSystem = existsSync(this.resourceUri.fsPath)
+      this.updateLabel()
+      this.updateCommand()
+      return this._existsInFileSystem
+    } catch (e) {
+      // If there's an error checking, assume the file doesn't exist
+      this._existsInFileSystem = false
+      this.updateLabel()
+      this.updateCommand()
+      return false
+    }
+  }
+
+  // Update the display label to show if file exists or not
+  private updateLabel() {
+    const fileName = basename(this.resourceUri.fsPath)
+
+    if (this._existsInFileSystem) {
+      this.label = fileName
+      this.description = ""
+      this.tooltip = this.resourceUri.fsPath
+      this.iconPath = undefined
+    } else {
+      this.label = `${fileName} (missing)`
+      this.description = "File not found in current branch"
+      this.tooltip = this.resourceUri.fsPath + " (missing in current branch)"
+
+      // Add an icon to indicate missing files more clearly
+      this.iconPath = new vscode.ThemeIcon(
+        "warning",
+        new vscode.ThemeColor("errorForeground")
+      )
+    }
+  }
+
+  // Update the command based on file existence
+  private updateCommand() {
+    try {
+      this.command = {
+        title: "",
+        command: this._existsInFileSystem
+          ? "vscode.open"
+          : "workingSets.fileNotFound",
+        arguments: this._existsInFileSystem
+          ? [this.resourceUri, { preview: false }]
+          : [this.resourceUri],
+      }
+    } catch (e) {
+      console.error("Error updating command:", e)
+      // Provide a safe fallback
+      this.command = {
+        title: "",
+        command: "workingSets.fileNotFound",
+        arguments: [this.resourceUri],
+      }
+    }
   }
 
   contextValue = "workingSetItem"

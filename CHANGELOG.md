@@ -6,6 +6,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [2.1.0] - 04/24/2025
+
+### Added
+
+- Files in working sets now persist across git branch changes
+- Visual indicators for files that don't exist in the current branch
+- Files that are missing in the current branch remain in working sets and will reappear when switching back to branches where they exist
+- When trying to open non-existent files, a helpful message is shown instead of an error
+- Automatic refresh of working sets when git branches change
+- New command to manually refresh working sets after branch changes
+
 ## [2.0.0] - 01/13/2023
 
 ### Changed
