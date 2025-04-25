@@ -8,7 +8,7 @@ The refactoring of the Working Sets extension is now complete according to the p
 
 The extension has been refactored into a modular, service-based architecture with clear separation of concerns:
 
-```
+```tree
 src/
 ├── extension.ts              // Entry point with dependency injection
 ├── models/                   // Data models

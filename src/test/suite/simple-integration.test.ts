@@ -3,7 +3,10 @@ import * as vscode from "vscode"
 import * as path from "path"
 import * as fs from "fs"
 
-suite("Working Sets Integration Tests", () => {
+// Generate a unique ID for this test run to distinguish between multiple executions
+const testRunId = Math.floor(Math.random() * 10000)
+
+suite(`Working Sets Integration Tests (Run ${testRunId})`, () => {
   const testWorkingSetName = "Test Working Set"
   let testFiles: string[] = []
 
