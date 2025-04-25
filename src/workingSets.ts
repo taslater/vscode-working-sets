@@ -456,6 +456,12 @@ export class WorkingSetsProvider
       this.updateWorkspaceState()
     }
 
+    // Skip confirmation if we're in test mode
+    if (process.env.VSCODE_WORKING_SETS_TEST_MODE === "true") {
+      performDelete()
+      return
+    }
+
     if (vscode.workspace.getConfiguration("workingSets").confirmOnDelete) {
       const confirmation = await vscode.window.showInformationMessage(
         `Are you sure you want to delete "${name}"?`,
